@@ -9,14 +9,14 @@
 #define SIZE_BUFFER_ATENCION	100
 #define SIZE_BUFFER_RESPUESTA 100
 #define ESPACIO								0x08
-
+#define SIN_CARACTERES				-1
 
 uint8_t	 SERIAL_HEADER[] = 
 	{ 																				
-		" --------------------------------------------\r\n Nombre: Comunicación Serial printf (Viewer) \r\n Versión: v0.01 \r\n Autor: Aurelio Siordia González \r\n Última modificación 06/Enero/2017 \r\n--------------------------------------------\r\n\n"
+		" --------------------------------------------\r\n Nombre: Comunicación Serial printf (Viewer) \r\n Versión: v0.01 \r\n Autor: Aurelio Siordia González \r\n Última modificación: 06/Enero/2017 \r\n--------------------------------------------\r\n\n"
 	};
 
-uint8_t BufferAtencion[SIZE_BUFFER_ATENCION];
+	uint8_t BufferAtencion[SIZE_BUFFER_ATENCION];
 uint8_t	BufferRespuesta[SIZE_BUFFER_RESPUESTA];
 
 extern UART_HandleTypeDef huart7;
@@ -52,24 +52,41 @@ typedef struct
 
 eSerial gsSerial;
 
+//---------------------------------------------------
+//
+//
+//
+//
+//---------------------------------------------------
 void Serial_Iniciar(void)
 {
 	gsSerial.Flags.all = 0x00;
 	printf("%s", SERIAL_HEADER);
 }
 
+//---------------------------------------------------
+//
+//
+//
+//
+//---------------------------------------------------
 void Serial_Atencion(void)
 {
 	static uint8_t SerialAtencionIndice = 0;
+	int32_t StatusReceiveChar;
+	
 	if(SerialAtencionIndice>SIZE_BUFFER_ATENCION)
 	{
 		SerialAtencionIndice = 0;
 		printf("\nADVERTENCIA: TAMAÑO DE BUFFER EXCEDIDO\n");
 		return;
 	}
-	int32_t StatusReceiveChar = ITM_ReceiveChar();
-	if(StatusReceiveChar == -1) return; 
+	StatusReceiveChar = ITM_ReceiveChar();
+	
+	if(StatusReceiveChar == SIN_CARACTERES) return; 
+	
 	if(StatusReceiveChar == ESC)return;
+
 	if(StatusReceiveChar == ESPACIO)
 	{	
 		if(SerialAtencionIndice==0) return;
@@ -78,20 +95,43 @@ void Serial_Atencion(void)
 		printf("%s %s", CURSOR_IZQUIERDA,CURSOR_IZQUIERDA);
 		return;
 	}
-	BufferAtencion[SerialAtencionIndice] = StatusReceiveChar;
+	
 	if(StatusReceiveChar == 0x0d)
+	{
+		BufferAtencion[SerialAtencionIndice]   = 0x0d;
+		BufferAtencion[SerialAtencionIndice+1] = 0x0a;
+		BufferAtencion[SerialAtencionIndice+2] = 0x00;
+		printf("\r\n");
+		gsSerial.Flags.SerialMensajeRecibido = true;
+		SerialAtencionIndice = 0;
+		return;
+	}
+	
+	BufferAtencion[SerialAtencionIndice] = StatusReceiveChar;
+/*
+	if(BufferAtencion[0] == 'c' &&
+		 BufferAtencion[1] == 'l' &&
+		 BufferAtencion[2] == 'c' &&
+		 BufferAtencion[3] == '\r'&&
+		 BufferAtencion[4] == '\n'&&
+		 SerialAtencionIndice > 4
+		)
 		{
-			BufferAtencion[SerialAtencionIndice+1] = 0x0a;
-			BufferAtencion[SerialAtencionIndice+2] = 0x00;
-			printf("\r\n");
-			gsSerial.Flags.SerialMensajeRecibido = true;
+			printf("%s",LIMPIAR_PANTALLA);
 			SerialAtencionIndice = 0;
 			return;
 		}
+*/
 	printf("%c",  BufferAtencion[SerialAtencionIndice]);
 	SerialAtencionIndice++;
 }
 
+//---------------------------------------------------
+//
+//
+//
+//
+//---------------------------------------------------
 void Serial_getString(uint8_t * String)
 {
 	uint8_t SerialgetDatoIndice = 0;
@@ -105,6 +145,12 @@ void Serial_getString(uint8_t * String)
 	}
 }
 
+//---------------------------------------------------
+//
+//
+//
+//
+//---------------------------------------------------
 void Serial_ImprimirString(uint8_t * String)
 {
 	printf("\n");
@@ -116,6 +162,12 @@ void Serial_ImprimirString(uint8_t * String)
 	printf("\n");
 }
 
+//---------------------------------------------------
+//
+//
+//
+//
+//---------------------------------------------------
 void Serial_AboutIt(void)
 {
 	printf("%s", SERIAL_HEADER);
