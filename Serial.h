@@ -1,13 +1,20 @@
 #ifndef SERIALSOFTWARE_H
 #define SERIALSOFTWARE_H
 
+#pragma anon_unions
+
 #include "stm32f7xx_hal.h"
 #include "ANSI_VT100.h"
 
 #define SIZE_BUFFER_ATENCION	100
 #define SIZE_BUFFER_RESPUESTA 100
+#define ESPACIO								0x08
 
-#pragma anon_unions
+
+uint8_t	 SERIAL_HEADER[] = 
+	{ 																				
+		" --------------------------------------------\r\n Nombre: Comunicación Serial printf (Viewer) \r\n Versión: v0.01 \r\n Autor: Aurelio Siordia González \r\n Última modificación 06/Enero/2017 \r\n--------------------------------------------\r\n\n"
+	};
 
 uint8_t BufferAtencion[SIZE_BUFFER_ATENCION];
 uint8_t	BufferRespuesta[SIZE_BUFFER_RESPUESTA];
@@ -19,18 +26,24 @@ typedef union
 	uint8_t all;
 	struct
 	{
-		uint8_t bit7   :1;
-		uint8_t bit6	 :1;
-		uint8_t bit5	 :1;
-		uint8_t bit4	 :1;
-		uint8_t bit3	 :1;
-		uint8_t bit2	 :1;
-		uint8_t bit1	 :1;
-		uint8_t bit0	 :1;
+		uint8_t bit7   								 :1;
+		uint8_t bit6	 								 :1;
+		uint8_t bit5	 								 :1;
+		uint8_t bit4	 								 :1;
+		uint8_t bit3	 								 :1;
+		uint8_t bit2	 								 :1;
+		uint8_t bit1	 								 :1;
+		uint8_t SerialMensajeRecibido	 :1;
 	};
 
 }uFlags;
 
+enum
+{
+false,
+true
+
+}eSerialStatus;
 
 typedef struct
 {
@@ -41,36 +54,23 @@ eSerial gsSerial;
 
 void Serial_Iniciar(void)
 {
-	printf("%s", HEADER);
-
+	gsSerial.Flags.all = 0x00;
+	printf("%s", SERIAL_HEADER);
 }
-
-
-void Serial_EnviarComando(void)
-{
-	uint8_t j = 0;
-	uint8_t u8SizeMensaje = 0;
-	while( (j < SIZE_BUFFER_ATENCION)  &&  (BufferAtencion[j] != 0x00) )
-	{
-		HAL_GPIO_TogglePin(LED_GPIO_Port,LED_Pin);
-		u8SizeMensaje++;
-		j++;
-	}
-	HAL_UART_Transmit(&huart7, BufferAtencion,u8SizeMensaje,100);
-	HAL_GPIO_WritePin(LED_GPIO_Port,LED_Pin,GPIO_PIN_RESET);
-	__asm("NOP");
-}
-
 
 void Serial_Atencion(void)
 {
 	static uint8_t SerialAtencionIndice = 0;
-	
-	if(SerialAtencionIndice>SIZE_BUFFER_ATENCION) return;
+	if(SerialAtencionIndice>SIZE_BUFFER_ATENCION)
+	{
+		SerialAtencionIndice = 0;
+		printf("\nADVERTENCIA: TAMAÑO DE BUFFER EXCEDIDO\n");
+		return;
+	}
 	int32_t StatusReceiveChar = ITM_ReceiveChar();
 	if(StatusReceiveChar == -1) return; 
 	if(StatusReceiveChar == ESC)return;
-	if(StatusReceiveChar == 0x08)
+	if(StatusReceiveChar == ESPACIO)
 	{	
 		if(SerialAtencionIndice==0) return;
 		SerialAtencionIndice--;
@@ -84,12 +84,41 @@ void Serial_Atencion(void)
 			BufferAtencion[SerialAtencionIndice+1] = 0x0a;
 			BufferAtencion[SerialAtencionIndice+2] = 0x00;
 			printf("\r\n");
+			gsSerial.Flags.SerialMensajeRecibido = true;
 			SerialAtencionIndice = 0;
-			Serial_EnviarComando();
 			return;
 		}
 	printf("%c",  BufferAtencion[SerialAtencionIndice]);
 	SerialAtencionIndice++;
+}
+
+void Serial_getString(uint8_t * String)
+{
+	uint8_t SerialgetDatoIndice = 0;
+	if(gsSerial.Flags.SerialMensajeRecibido == false) return;
+	gsSerial.Flags.SerialMensajeRecibido = false;
+	while(BufferAtencion[SerialgetDatoIndice] != 0x00)
+	{
+		*String = BufferAtencion[SerialgetDatoIndice];
+		String++;
+		SerialgetDatoIndice++;
+	}
+}
+
+void Serial_ImprimirString(uint8_t * String)
+{
+	printf("\n");
+	while(*String != '\n')
+	{
+		printf("%c", *String);
+		String++;
+	}
+	printf("\n");
+}
+
+void Serial_AboutIt(void)
+{
+	printf("%s", SERIAL_HEADER);
 }
 
 #endif
