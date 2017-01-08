@@ -10,7 +10,8 @@
 #define SIZE_BUFFER_RESPUESTA 100
 #define ESPACIO								0x08
 #define SIN_CARACTERES				-1
-
+#define SIN_CADENA						-1
+#define SERIAL_OK							0
 uint8_t	 SERIAL_HEADER[] = 
 	{ 																				
 		" --------------------------------------------\r\n Nombre: Comunicación Serial printf (Viewer) \r\n Versión: v0.01 \r\n Autor: Aurelio Siordia González \r\n Última modificación: 06/Enero/2017 \r\n--------------------------------------------\r\n\n"
@@ -132,10 +133,10 @@ void Serial_Atencion(void)
 //
 //
 //---------------------------------------------------
-void Serial_getString(uint8_t * String)
+int8_t Serial_getString(uint8_t * String)
 {
 	uint8_t SerialgetDatoIndice = 0;
-	if(gsSerial.Flags.SerialMensajeRecibido == false) return;
+	if(gsSerial.Flags.SerialMensajeRecibido == false) return(SIN_CADENA);
 	gsSerial.Flags.SerialMensajeRecibido = false;
 	while(BufferAtencion[SerialgetDatoIndice] != 0x00)
 	{
@@ -143,6 +144,7 @@ void Serial_getString(uint8_t * String)
 		String++;
 		SerialgetDatoIndice++;
 	}
+	return(SerialgetDatoIndice);
 }
 
 //---------------------------------------------------
