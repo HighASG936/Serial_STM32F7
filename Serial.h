@@ -12,6 +12,8 @@
 #define SIN_CARACTERES				-1
 #define SIN_CADENA						-1
 #define SERIAL_OK							0
+#define BUZZERTIME						50000
+
 uint8_t	 SERIAL_HEADER[] = 
 	{ 																				
 		" --------------------------------------------\r\n Nombre: Comunicación Serial printf (Viewer) \r\n Versión: v0.01 \r\n Autor: Aurelio Siordia González \r\n Última modificación: 06/Enero/2017 \r\n--------------------------------------------\r\n\n"
@@ -32,8 +34,8 @@ typedef union
 		uint8_t bit5	 								 :1;
 		uint8_t bit4	 								 :1;
 		uint8_t bit3	 								 :1;
-		uint8_t bit2	 								 :1;
-		uint8_t bit1	 								 :1;
+		uint8_t SerialEnciendeBuzzer	 :1;
+		uint8_t SerialBuzzerIniciado	 :1;
 		uint8_t SerialMensajeRecibido	 :1;
 	};
 
@@ -48,10 +50,57 @@ true
 
 typedef struct
 {
+	GPIO_TypeDef * SerialPuertoBuzzer;
 	uFlags Flags;
 }eSerial;
 
 eSerial gsSerial;
+
+GPIO_InitTypeDef Serial_BuzzerInitStruct;
+
+//---------------------------------------------------
+//
+//
+//
+//
+//---------------------------------------------------
+void Serial_InitBuzzer(GPIO_TypeDef * GPIOPortBuzzer, uint16_t BUZZER_Pin)
+{
+	
+	HAL_GPIO_WritePin(GPIOPortBuzzer, BUZZER_Pin, GPIO_PIN_RESET);
+	
+	gsSerial.SerialPuertoBuzzer = GPIOPortBuzzer;
+	
+  Serial_BuzzerInitStruct.Pin = BUZZER_Pin;
+  Serial_BuzzerInitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  Serial_BuzzerInitStruct.Pull = GPIO_NOPULL;
+  Serial_BuzzerInitStruct.Speed = GPIO_SPEED_LOW;
+	
+  HAL_GPIO_Init(GPIOPortBuzzer, &Serial_BuzzerInitStruct);
+
+	gsSerial.Flags.SerialBuzzerIniciado = true;
+}
+
+
+//---------------------------------------------------
+//
+//
+//
+//
+//---------------------------------------------------
+void Serial_AtencionBuzzer(void)
+{
+	static uint16_t LoudTime = BUZZERTIME;
+	
+	if(gsSerial.Flags.SerialEnciendeBuzzer == true	&&	LoudTime != 0)
+	{
+		HAL_GPIO_WritePin(gsSerial.SerialPuertoBuzzer, Serial_BuzzerInitStruct.Pin, GPIO_PIN_SET);
+		LoudTime--;
+		return;
+	}
+	LoudTime = BUZZERTIME;
+	gsSerial.Flags.SerialEnciendeBuzzer = false;
+}
 
 //---------------------------------------------------
 //
@@ -75,6 +124,8 @@ void Serial_Atencion(void)
 {
 	static uint8_t SerialAtencionIndice = 0;
 	int32_t StatusReceiveChar;
+	
+	Serial_AtencionBuzzer();
 	
 	if(SerialAtencionIndice>SIZE_BUFFER_ATENCION)
 	{
@@ -105,24 +156,11 @@ void Serial_Atencion(void)
 		printf("\r\n");
 		gsSerial.Flags.SerialMensajeRecibido = true;
 		SerialAtencionIndice = 0;
+		if(gsSerial.Flags.SerialBuzzerIniciado == true) gsSerial.Flags.SerialEnciendeBuzzer = true;
 		return;
 	}
 	
 	BufferAtencion[SerialAtencionIndice] = StatusReceiveChar;
-/*
-	if(BufferAtencion[0] == 'c' &&
-		 BufferAtencion[1] == 'l' &&
-		 BufferAtencion[2] == 'c' &&
-		 BufferAtencion[3] == '\r'&&
-		 BufferAtencion[4] == '\n'&&
-		 SerialAtencionIndice > 4
-		)
-		{
-			printf("%s",LIMPIAR_PANTALLA);
-			SerialAtencionIndice = 0;
-			return;
-		}
-*/
 	printf("%c",  BufferAtencion[SerialAtencionIndice]);
 	SerialAtencionIndice++;
 }
