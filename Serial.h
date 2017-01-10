@@ -12,7 +12,7 @@
 #define SIN_CARACTERES				-1
 #define SIN_CADENA						-1
 #define SERIAL_OK							0
-#define BUZZERTIME						2000
+#define BUZZERTIME						50
 
 uint8_t	 SERIAL_HEADER[] = 
 	{ 																				
@@ -57,7 +57,34 @@ typedef struct
 eSerial gsSerial;
 
 GPIO_InitTypeDef Serial_BuzzerInitStruct;
+uint16_t LoudTime;
 
+TIM_HandleTypeDef htim7;
+
+/* TIM7 init function */
+void MX_TIM7_Init(void)
+{
+
+  TIM_MasterConfigTypeDef sMasterConfig;
+
+  htim7.Instance = TIM7;
+  htim7.Init.Prescaler = 108;
+  htim7.Init.CounterMode = TIM_COUNTERMODE_DOWN;
+  htim7.Init.Period = 999;
+  HAL_TIM_Base_Init(&htim7);
+
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  HAL_TIMEx_MasterConfigSynchronization(&htim7, &sMasterConfig);
+	HAL_NVIC_SetPriority(TIM7_IRQn,1,0);
+	HAL_NVIC_EnableIRQ(TIM7_IRQn);
+}
+
+void TIM7_IRQHandler(void)
+{
+	HAL_TIM_IRQHandler(&htim7);
+	LoudTime--;
+}
 //---------------------------------------------------
 //
 //
@@ -88,12 +115,9 @@ void Serial_InitBuzzer(GPIO_TypeDef * GPIOPortBuzzer, uint16_t BUZZER_Pin)
 //---------------------------------------------------
 void Serial_AtencionBuzzer(void)
 {
-	static uint16_t LoudTime = BUZZERTIME;
-	
 	if(gsSerial.Flags.SerialEnciendeBuzzer == true	&&	LoudTime != 0)
 	{
 		HAL_GPIO_WritePin(gsSerial.SerialPuertoBuzzer, Serial_BuzzerInitStruct.Pin, GPIO_PIN_SET);
-		LoudTime--;
 		return;
 	}
 	HAL_GPIO_WritePin(gsSerial.SerialPuertoBuzzer, Serial_BuzzerInitStruct.Pin, GPIO_PIN_RESET);
@@ -109,6 +133,8 @@ void Serial_AtencionBuzzer(void)
 //---------------------------------------------------
 void Serial_Iniciar(void)
 {
+	MX_TIM7_Init();
+	HAL_TIM_Base_Start_IT(&htim7);
 	gsSerial.Flags.all = 0x00;
 	printf("%s", SERIAL_HEADER);
 }
@@ -136,8 +162,11 @@ void Serial_Atencion(void)
 	
 	if(StatusReceiveChar == SIN_CARACTERES) return; 
 	
-	if(StatusReceiveChar == ESC)return;
-
+	if(StatusReceiveChar == ESC)
+		{
+			if(gsSerial.Flags.SerialBuzzerIniciado == true) gsSerial.Flags.SerialEnciendeBuzzer = true;
+			return;
+		}
 	if(StatusReceiveChar == ESPACIO)
 	{	
 		if(SerialAtencionIndice==0) 
