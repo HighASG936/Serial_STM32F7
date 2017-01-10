@@ -12,7 +12,7 @@
 #define SIN_CARACTERES				-1
 #define SIN_CADENA						-1
 #define SERIAL_OK							0
-#define BUZZERTIME						50000
+#define BUZZERTIME						2000
 
 uint8_t	 SERIAL_HEADER[] = 
 	{ 																				
@@ -67,17 +67,15 @@ GPIO_InitTypeDef Serial_BuzzerInitStruct;
 void Serial_InitBuzzer(GPIO_TypeDef * GPIOPortBuzzer, uint16_t BUZZER_Pin)
 {
 	
-	HAL_GPIO_WritePin(GPIOPortBuzzer, BUZZER_Pin, GPIO_PIN_RESET);
-	
 	gsSerial.SerialPuertoBuzzer = GPIOPortBuzzer;
 	
   Serial_BuzzerInitStruct.Pin = BUZZER_Pin;
   Serial_BuzzerInitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  Serial_BuzzerInitStruct.Pull = GPIO_NOPULL;
+  Serial_BuzzerInitStruct.Pull = GPIO_PULLUP;
   Serial_BuzzerInitStruct.Speed = GPIO_SPEED_LOW;
 	
   HAL_GPIO_Init(GPIOPortBuzzer, &Serial_BuzzerInitStruct);
-
+	HAL_GPIO_WritePin(GPIOPortBuzzer, BUZZER_Pin, GPIO_PIN_RESET);
 	gsSerial.Flags.SerialBuzzerIniciado = true;
 }
 
@@ -98,6 +96,7 @@ void Serial_AtencionBuzzer(void)
 		LoudTime--;
 		return;
 	}
+	HAL_GPIO_WritePin(gsSerial.SerialPuertoBuzzer, Serial_BuzzerInitStruct.Pin, GPIO_PIN_RESET);
 	LoudTime = BUZZERTIME;
 	gsSerial.Flags.SerialEnciendeBuzzer = false;
 }
@@ -141,7 +140,11 @@ void Serial_Atencion(void)
 
 	if(StatusReceiveChar == ESPACIO)
 	{	
-		if(SerialAtencionIndice==0) return;
+		if(SerialAtencionIndice==0) 
+		{
+			if(gsSerial.Flags.SerialBuzzerIniciado == true) gsSerial.Flags.SerialEnciendeBuzzer = true;
+			return;
+		}
 		SerialAtencionIndice--;
 		BufferAtencion[SerialAtencionIndice] = 0x00;
 		printf("%s %s", CURSOR_IZQUIERDA,CURSOR_IZQUIERDA);
@@ -156,7 +159,6 @@ void Serial_Atencion(void)
 		printf("\r\n");
 		gsSerial.Flags.SerialMensajeRecibido = true;
 		SerialAtencionIndice = 0;
-		if(gsSerial.Flags.SerialBuzzerIniciado == true) gsSerial.Flags.SerialEnciendeBuzzer = true;
 		return;
 	}
 	
