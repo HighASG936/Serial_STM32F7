@@ -82,10 +82,31 @@ void MX_TIM7_Init(void)
 	HAL_NVIC_EnableIRQ(TIM7_IRQn);
 }
 
+//---------------------------------------------------
+//
+//
+//
+//
+//---------------------------------------------------
+void Serial_AtencionBuzzer(void)
+{
+	if(gsSerial.Flags.SerialEnciendeBuzzer == true && LoudTime != 0x00)
+	{
+	HAL_GPIO_WritePin(gsSerial.SerialPuertoBuzzer, Serial_BuzzerInitStruct.Pin, GPIO_PIN_SET);
+	LoudTime--;
+	return;
+	}
+	HAL_TIM_Base_Stop_IT(&htim7);
+	HAL_GPIO_WritePin(gsSerial.SerialPuertoBuzzer, Serial_BuzzerInitStruct.Pin, GPIO_PIN_RESET);
+	gsSerial.Flags.SerialEnciendeBuzzer = false;
+	LoudTime = BUZZERTIME;
+}
+
+
 void TIM7_IRQHandler(void)
 {
 	HAL_TIM_IRQHandler(&htim7);
-	LoudTime--;
+	Serial_AtencionBuzzer();
 }
 
 //---------------------------------------------------
@@ -107,26 +128,6 @@ void Serial_InitBuzzer(GPIO_TypeDef * GPIOPortBuzzer, uint16_t BUZZER_Pin)
   HAL_GPIO_Init(GPIOPortBuzzer, &Serial_BuzzerInitStruct);
 	HAL_GPIO_WritePin(GPIOPortBuzzer, BUZZER_Pin, GPIO_PIN_RESET);
 	gsSerial.Flags.SerialBuzzerIniciado = true;
-}
-
-
-//---------------------------------------------------
-//
-//
-//
-//
-//---------------------------------------------------
-void Serial_AtencionBuzzer(void)
-{
-	if(gsSerial.Flags.SerialEnciendeBuzzer == true	&&	LoudTime != 0)
-	{
-		HAL_GPIO_WritePin(gsSerial.SerialPuertoBuzzer, Serial_BuzzerInitStruct.Pin, GPIO_PIN_SET);
-		return;
-	}
-		HAL_TIM_Base_Stop_IT(&htim7);
-	HAL_GPIO_WritePin(gsSerial.SerialPuertoBuzzer, Serial_BuzzerInitStruct.Pin, GPIO_PIN_RESET);
-	LoudTime = BUZZERTIME;
-	gsSerial.Flags.SerialEnciendeBuzzer = false;
 }
 
 //---------------------------------------------------
@@ -158,8 +159,6 @@ void Serial_Atencion(void)
 {
 	static uint8_t SerialAtencionIndice = 0;
 	int32_t StatusReceiveChar;
-	
-	Serial_AtencionBuzzer();
 
 	//Si se excede el tamaño del buffer asignado
 	if(SerialAtencionIndice>SIZE_BUFFER_ATENCION)
@@ -189,8 +188,11 @@ void Serial_Atencion(void)
 		if(SerialAtencionIndice==0) 
 		{
 			//Activa el zumbido del buzzer
-			if(gsSerial.Flags.SerialBuzzerIniciado == true) gsSerial.Flags.SerialEnciendeBuzzer = true;
-			HAL_TIM_Base_Start_IT(&htim7);
+			if(gsSerial.Flags.SerialBuzzerIniciado == true)
+			{ 
+				gsSerial.Flags.SerialEnciendeBuzzer = true;
+				HAL_TIM_Base_Start_IT(&htim7);
+			}
 			return;
 		}
 		
