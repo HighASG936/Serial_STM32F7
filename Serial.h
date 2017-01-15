@@ -16,7 +16,7 @@
 
 uint8_t	 SERIAL_HEADER[] = 
 	{ 																				
-		" --------------------------------------------\r\n Nombre: Comunicación Serial printf (Viewer) \r\n Versión: v0.01 \r\n Autor: Aurelio Siordia González \r\n Última modificación: 12/Enero/2017 \r\n--------------------------------------------\r\n\n"
+		" --------------------------------------------\r\n Nombre: Comunicación Serial printf (Viewer) \r\n Versión: v1.0.1 \r\n Autor: Aurelio Siordia González \r\n Última modificación: 15/Enero/2017 \r\n--------------------------------------------\r\n\n"
 	};
 
 
