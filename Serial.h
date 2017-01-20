@@ -14,6 +14,15 @@
 #define SERIAL_OK							0
 #define BUZZERTIME						50
 
+void Serial_AtencionBuzzer(void);
+void Serial_InitBuzzer(GPIO_TypeDef * GPIOPortBuzzer, uint16_t BUZZER_Pin);
+void Serial_Iniciar(void);
+void Serial_Atencion(void);
+int8_t Serial_getString(uint8_t * String);
+uint8_t Serial_ImprimirString(uint8_t * String);
+void Serial_AboutIt(void);
+
+
 uint8_t	 SERIAL_HEADER[] = 
 	{ 																				
 		" --------------------------------------------\r\n Nombre: Comunicación Serial printf (Viewer) \r\n Versión: v1.0.1 \r\n Autor: Aurelio Siordia González \r\n Última modificación: 15/Enero/2017 \r\n--------------------------------------------\r\n\n"
@@ -61,23 +70,23 @@ eSerial gsSerial;
 GPIO_InitTypeDef Serial_BuzzerInitStruct;
 uint16_t LoudTime;
 
-TIM_HandleTypeDef htim7;
+TIM_HandleTypeDef Timer;
 
 /* TIM7 init function */
-void MX_TIM7_Init(void)
+void Timer_Inicializar(void)
 {
 
   TIM_MasterConfigTypeDef sMasterConfig;
 
-  htim7.Instance = TIM7;
-  htim7.Init.Prescaler = 108;
-  htim7.Init.CounterMode = TIM_COUNTERMODE_DOWN;
-  htim7.Init.Period = 999;
-  HAL_TIM_Base_Init(&htim7);
+  Timer.Instance = TIM7;
+  Timer.Init.Prescaler = 108;
+  Timer.Init.CounterMode = TIM_COUNTERMODE_DOWN;
+  Timer.Init.Period = 999;
+  HAL_TIM_Base_Init(&Timer);
 
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  HAL_TIMEx_MasterConfigSynchronization(&htim7, &sMasterConfig);
+  HAL_TIMEx_MasterConfigSynchronization(&Timer, &sMasterConfig);
 	HAL_NVIC_SetPriority(TIM7_IRQn,2,0);
 	HAL_NVIC_EnableIRQ(TIM7_IRQn);
 }
@@ -96,16 +105,21 @@ void Serial_AtencionBuzzer(void)
 	LoudTime--;
 	return;
 	}
-	HAL_TIM_Base_Stop_IT(&htim7);
+	HAL_TIM_Base_Stop_IT(&Timer);
 	HAL_GPIO_WritePin(gsSerial.SerialPuertoBuzzer, Serial_BuzzerInitStruct.Pin, GPIO_PIN_RESET);
 	gsSerial.Flags.SerialEnciendeBuzzer = false;
 	LoudTime = BUZZERTIME;
 }
 
-
+//---------------------------------------------------
+//
+//
+//
+//
+//---------------------------------------------------
 void TIM7_IRQHandler(void)
 {
-	HAL_TIM_IRQHandler(&htim7);
+	HAL_TIM_IRQHandler(&Timer);
 	Serial_AtencionBuzzer();
 }
 
@@ -138,7 +152,7 @@ void Serial_InitBuzzer(GPIO_TypeDef * GPIOPortBuzzer, uint16_t BUZZER_Pin)
 //---------------------------------------------------
 void Serial_Iniciar(void)
 {
-	MX_TIM7_Init();
+	Timer_Inicializar();
 	gsSerial.Flags.all = 0x00;
 	printf("%s", SERIAL_HEADER);
 	fflush(stdin);
@@ -191,7 +205,7 @@ void Serial_Atencion(void)
 			if(gsSerial.Flags.SerialBuzzerIniciado == true)
 			{ 
 				gsSerial.Flags.SerialEnciendeBuzzer = true;
-				HAL_TIM_Base_Start_IT(&htim7);
+				HAL_TIM_Base_Start_IT(&Timer);
 			}
 			return;
 		}
@@ -297,6 +311,12 @@ void Serial_AboutIt(void)
 	fflush(stdin);
 }
 
+//---------------------------------------------------
+//
+//
+//
+//
+//---------------------------------------------------
 void HardFault_Handler(void)
 {
 printf("HardFault_Handler");
