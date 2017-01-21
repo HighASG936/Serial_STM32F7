@@ -68,7 +68,7 @@ typedef union
 		uint8_t bit6	 								 :1;
 		uint8_t bit5	 								 :1;
 		uint8_t bit4	 								 :1;
-		uint8_t bit3	 								 :1;
+		uint8_t SerialVTComandRecibido :1;
 		uint8_t SerialEnciendeBuzzer	 :1;
 		uint8_t SerialBuzzerIniciado	 :1;
 		uint8_t SerialMensajeRecibido	 :1;
@@ -91,7 +91,6 @@ typedef struct
 	uFlags Flags;
 	uint8_t BufferAtencion[SIZE_BUFFER_ATENCION];
 
-	void		(*Iniciar)(void);
 	void		(*InitBuzzer)(GPIO_TypeDef * GPIOPortBuzzer, uint16_t BUZZER_Pin);
 	void		(*AtencionBuzzer)(void);
 	void 		(*Atencion)(void);
@@ -205,13 +204,12 @@ void Serial_InitBuzzer(GPIO_TypeDef * GPIOPortBuzzer, uint16_t BUZZER_Pin)
 void Serial_Iniciar(void)
 {
 
-	gsSerial.Iniciar 				=	Serial_Iniciar;
 	gsSerial.InitBuzzer 		= Serial_InitBuzzer;
 	gsSerial.AtencionBuzzer	=	Serial_AtencionBuzzer;
 	gsSerial.Atencion				= Serial_Atencion;
 	gsSerial.getString			= Serial_getString;
 	gsSerial.ImprimirString	= Serial_ImprimirString;
-	gsSerial.AboutIt 				=Serial_AboutIt;	
+	gsSerial.AboutIt 				= Serial_AboutIt;	
 	
 	Timer_Inicializar();
 	gsSerial.Flags.all = 0x00;
@@ -248,12 +246,23 @@ void Serial_Atencion(void)
 	}
 	StatusReceiveChar = ITM_ReceiveChar();
 	
+	if(gsSerial.Flags.SerialVTComandRecibido == true)
+	{
+/*
+		if(StatusReceiveChar == '[' ) return;
+		if(StatusReceiveChar == 'D') printf("%s", CURSOR_IZQUIERDA);
+		if(StatusReceiveChar == 'C')printf("%s", CURSOR_DERECHA);
+*/
+		gsSerial.Flags.SerialVTComandRecibido = false;
+	}
+	
 	//Si no hay nada qué recibir de la consola
 	if(StatusReceiveChar == SIN_CARACTERES) return; 
 	
 	//Si se recibe algún comando ANSI/VT100
 	if(StatusReceiveChar == ESC)
-		{			
+		{
+				gsSerial.Flags.SerialVTComandRecibido = true;
 			//Se pregunta si se inicializó el buzzer
 			if(gsSerial.Flags.SerialBuzzerIniciado == true) gsSerial.Flags.SerialEnciendeBuzzer = true;
 			return;
