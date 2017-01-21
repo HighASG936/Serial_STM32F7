@@ -1,11 +1,42 @@
 #ifndef SERIALSOFTWARE_H
 #define SERIALSOFTWARE_H
+/*
+=============================================================================================
+Name of File: Serial.h
 
+Author:	Aurelio Siordia González
+Date:	20/01/2017
+
+Description:
+Esta librería tiene la función de administrar las funciones relacionadas con la terminal 
+incorporada en el Keilv5, Viewer(printf) y la comunicación serial UART incorporada en el 
+microcontrolador STM32F7. Aunque cabe señalar que puede ser compatible con cualquier tarjeta
+de desarrollo Discovery.
+
+How to use:
+
++Inicializar la libreria: 
+Invocar <Serial_Iniciar> para inicializar.
+
++Habilitar la función de buzzer:
+Utilice la función <Serial_InitBuzzer> indicando el pin y puerto. Para observar el estado del
+buzzer y cuando se debe activar, se consulta <Serial_AtencionBuzzer>.
+
++Consultar estado de la terminal:
+Cada vez que desee obsevar el estado de envío o recepción entre la terminal y la comunicación 
+serial UART, invoque <Serial_Atencion>.
+
+=============================================================================================
+*/
+
+//pragmas------------------------------------------------------------------------------------/
 #pragma anon_unions
 
+//includes----------------------------------------------------------------------------------/
 #include "stm32f7xx_hal.h"
 #include "ANSI_VT100.h"
 
+//defines-----------------------------------------------------------------------------------/
 #define SIZE_BUFFER_ATENCION	100
 #define SIZE_BUFFER_RESPUESTA 100
 #define RETROCESO							0x08
@@ -14,25 +45,20 @@
 #define SERIAL_OK							0
 #define BUZZERTIME						50
 
-void Serial_AtencionBuzzer(void);
-void Serial_InitBuzzer(GPIO_TypeDef * GPIOPortBuzzer, uint16_t BUZZER_Pin);
+//Prototipos------------------------------------------------------------------------------------/
+
 void Serial_Iniciar(void);
+void Serial_InitBuzzer(GPIO_TypeDef * GPIOPortBuzzer, uint16_t BUZZER_Pin);
+void Serial_AtencionBuzzer(void);
 void Serial_Atencion(void);
 int8_t Serial_getString(uint8_t * String);
 uint8_t Serial_ImprimirString(uint8_t * String);
 void Serial_AboutIt(void);
 
-
-uint8_t	 SERIAL_HEADER[] = 
-	{ 																				
-		" --------------------------------------------\r\n Nombre: Comunicación Serial printf (Viewer) \r\n Versión: v1.0.1 \r\n Autor: Aurelio Siordia González \r\n Última modificación: 15/Enero/2017 \r\n--------------------------------------------\r\n\n"
-	};
-
-
-uint8_t	BufferRespuesta[SIZE_BUFFER_RESPUESTA];
-
+//Variables externas----------------------------------------------------------------------------/
 extern UART_HandleTypeDef huart7;
 
+//Estructuras y uniones-------------------------------------------------------------------------/
 typedef union
 {
 	uint8_t all;
@@ -56,6 +82,7 @@ false,
 true,
 SerialBusy,
 SerialIdle
+
 }eSerialStatus;
 
 typedef struct
@@ -65,17 +92,16 @@ typedef struct
 	uint8_t BufferAtencion[SIZE_BUFFER_ATENCION];
 }eSerial;
 
-eSerial gsSerial;
+//Variables privadas----------------------------------------------------------------------------/
+GPIO_InitTypeDef Serial_BuzzerInitStruct;		//Estructura del GPIO para el buzzer
+uint16_t LoudTime;													//Contador para medir el tiempo de encendido del buzer
+eSerial gsSerial;														//Estructura General de la librería Serial.h
+TIM_HandleTypeDef Timer;										//Estructura del temporizador (ms) del buzzer y otros servicios
+uint8_t	 SERIAL_HEADER[] = {" --------------------------------------------\r\n Nombre: Comunicación Serial printf (Viewer) \r\n Versión: v1.0.2 \r\n Autor: Aurelio Siordia González \r\n Última modificación: 20/Enero/2017 \r\n--------------------------------------------\r\n\n"};
 
-GPIO_InitTypeDef Serial_BuzzerInitStruct;
-uint16_t LoudTime;
-
-TIM_HandleTypeDef Timer;
-
-/* TIM7 init function */
+/* Inicialización del temporizador */
 void Timer_Inicializar(void)
 {
-
   TIM_MasterConfigTypeDef sMasterConfig;
 
   Timer.Instance = TIM7;
@@ -91,12 +117,19 @@ void Timer_Inicializar(void)
 	HAL_NVIC_EnableIRQ(TIM7_IRQn);
 }
 
-//---------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------
+//Name: Serial_AtencionBuzzer
 //
+//Description:
+//Observa si es requerido que suene el buzzer
 //
+//Parameters: void
 //
+//Return: void
 //
-//---------------------------------------------------
+//Author: Aurelio Siordia González
+//Fecha: 20/01/2017
+//-------------------------------------------------------------------------------------------------------------------------
 void Serial_AtencionBuzzer(void)
 {
 	if(gsSerial.Flags.SerialEnciendeBuzzer == true && LoudTime != 0x00)
@@ -111,24 +144,27 @@ void Serial_AtencionBuzzer(void)
 	LoudTime = BUZZERTIME;
 }
 
-//---------------------------------------------------
-//
-//
-//
-//
-//---------------------------------------------------
+/* Handler de interrupción temporizador */
 void TIM7_IRQHandler(void)
 {
 	HAL_TIM_IRQHandler(&Timer);
 	Serial_AtencionBuzzer();
 }
 
-//---------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------
+//Name: Serial_InitBuzzer
 //
+//Description:
+//Inicializar el GPIO y la bandera de Buzzer iniciado
 //
+//Parameters:	<GPIOPortBuzzer>	Puerto del GPIO del Buzzer
+//						<BUZZER_Pin>			Pin del GPIO del Buzzer
 //
+//Return: void
 //
-//---------------------------------------------------
+//Author: Aurelio Siordia González
+//Fecha: 20/01/2017
+//-------------------------------------------------------------------------------------------------------------------------
 void Serial_InitBuzzer(GPIO_TypeDef * GPIOPortBuzzer, uint16_t BUZZER_Pin)
 {
 	
@@ -144,12 +180,19 @@ void Serial_InitBuzzer(GPIO_TypeDef * GPIOPortBuzzer, uint16_t BUZZER_Pin)
 	gsSerial.Flags.SerialBuzzerIniciado = true;
 }
 
-//---------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------
+//Name: Serial_Iniciar
 //
+//Description:
+//Inicializa temporizador, resetea todas las banderas, imprime el header a imprimir y limpiar buffer de printf
 //
+//Parameters: void
 //
+//Return: void
 //
-//---------------------------------------------------
+//Author: Aurelio Siordia González
+//Fecha: 20/01/2017
+//-------------------------------------------------------------------------------------------------------------------------
 void Serial_Iniciar(void)
 {
 	Timer_Inicializar();
@@ -157,17 +200,20 @@ void Serial_Iniciar(void)
 	printf("%s", SERIAL_HEADER);
 	fflush(stdin);
 }
+
 //-------------------------------------------------------------------------------------------------------------------------
 //Name: Serial_Atencion
-//Autor: Aurelio Siordia González
-//
-//Parameters: void
-//Return: void
 //
 //Description:
 //Permite escribir en la terminal Viwer (printf) del IDE Keil, así como editar el texto 
 //de la manera más parecida a una terminal de Windows.
 //
+//Parameters: void
+//
+//Return: void
+//
+//Author: Aurelio Siordia González
+//Fecha: 20/01/2017
 //-------------------------------------------------------------------------------------------------------------------------
 void Serial_Atencion(void)
 {
@@ -238,12 +284,21 @@ void Serial_Atencion(void)
 	SerialAtencionIndice++;
 }
 
-//---------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------
+//Name: Serial_getString
 //
+//Description:
+//Obtiene la cadena de caracteres que se recibieron atraves de la consola
 //
+//Parameters: <String> 			Cadena de caracteres en donde se almacenará la cadena recibida 
 //
+//Return: 		<SIN_CADENA>		No hay cadena 
+//						<SerialBusy>  	Procesando cadena
+//						<SerialgetSize>	Tamaño de la cadena obtenida
 //
-//---------------------------------------------------
+//Author: Aurelio Siordia González
+//Fecha: 20/01/2017
+//-------------------------------------------------------------------------------------------------------------------------
 int8_t Serial_getString(uint8_t * String)
 {
 	static uint8_t SerialgetDatoIndice = 0;
@@ -264,12 +319,20 @@ int8_t Serial_getString(uint8_t * String)
 	return(SerialgetSize);
 }
 
-//---------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------
+//Name: Serial_ImprimirString
 //
+//Description:
+//Imprime cadena en consola, obtenida por comunicación UART
 //
+//Parameters: <String> 			Cadena de caracteres a imprimir
 //
+//Return: 		<SerialBusy>		Ejecutando impresion en consola 
+//						<SerialIdle>  	Función ociosa
 //
-//---------------------------------------------------
+//Author: Aurelio Siordia González
+//Fecha: 20/01/2017
+//-------------------------------------------------------------------------------------------------------------------------
 uint8_t Serial_ImprimirString(uint8_t * String)
 {
 	static uint8_t ImprimirTasks = 0;
@@ -299,24 +362,38 @@ uint8_t Serial_ImprimirString(uint8_t * String)
 	return (StatusImprimir);
 }
 
-//---------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------
+//Name: Serial_AboutIt
 //
+//Description:
+//Imprime el header con la información de la librería
 //
+//Parameters: void
 //
+//Return: 		void
 //
-//---------------------------------------------------
+//Author: Aurelio Siordia González
+//Fecha: 20/01/2017
+//-------------------------------------------------------------------------------------------------------------------------
 void Serial_AboutIt(void)
 {
 	printf("%s", SERIAL_HEADER);
 	fflush(stdin);
 }
 
-//---------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------
+//Name: HardFault_Handler
 //
+//Description:
+//En caso de haber ocurrido un error grave en MCU, imprime el mensaje del tipo de error ocurrido
 //
+//Parameters: void
 //
+//Return: 		void
 //
-//---------------------------------------------------
+//Author: Aurelio Siordia González
+//Fecha: 20/01/2017
+//-------------------------------------------------------------------------------------------------------------------------
 void HardFault_Handler(void)
 {
 printf("HardFault_Handler");
