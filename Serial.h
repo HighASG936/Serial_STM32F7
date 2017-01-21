@@ -90,6 +90,15 @@ typedef struct
 	GPIO_TypeDef * SerialPuertoBuzzer;
 	uFlags Flags;
 	uint8_t BufferAtencion[SIZE_BUFFER_ATENCION];
+
+	void		(*Iniciar)(void);
+	void		(*InitBuzzer)(GPIO_TypeDef * GPIOPortBuzzer, uint16_t BUZZER_Pin);
+	void		(*AtencionBuzzer)(void);
+	void 		(*Atencion)(void);
+	int8_t	(*getString)(uint8_t * String);
+	uint8_t (*ImprimirString)(uint8_t * String);
+	void 		(*AboutIt)(void);
+	
 }eSerial;
 
 //Variables privadas----------------------------------------------------------------------------/
@@ -195,6 +204,15 @@ void Serial_InitBuzzer(GPIO_TypeDef * GPIOPortBuzzer, uint16_t BUZZER_Pin)
 //-------------------------------------------------------------------------------------------------------------------------
 void Serial_Iniciar(void)
 {
+
+	gsSerial.Iniciar 				=	Serial_Iniciar;
+	gsSerial.InitBuzzer 		= Serial_InitBuzzer;
+	gsSerial.AtencionBuzzer	=	Serial_AtencionBuzzer;
+	gsSerial.Atencion				= Serial_Atencion;
+	gsSerial.getString			= Serial_getString;
+	gsSerial.ImprimirString	= Serial_ImprimirString;
+	gsSerial.AboutIt 				=Serial_AboutIt;	
+	
 	Timer_Inicializar();
 	gsSerial.Flags.all = 0x00;
 	printf("%s", SERIAL_HEADER);
