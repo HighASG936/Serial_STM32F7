@@ -9,7 +9,7 @@ Date:	20/01/2017
 
 Description:
 Esta librería tiene la función de administrar las funciones relacionadas con la terminal 
-incorporada en el Keilv5, Viewer(printf) y la comunicación serial UART incorporada en el 
+incorporada en el Keilv5, Debug(printf)Viewer y la comunicación serial UART incorporada en el 
 microcontrolador STM32F7. Aunque cabe señalar que puede ser compatible con cualquier tarjeta
 de desarrollo Discovery.
 
@@ -68,7 +68,7 @@ typedef union
 		uint8_t bit6	 								 :1;
 		uint8_t bit5	 								 :1;
 		uint8_t bit4	 								 :1;
-		uint8_t bit3	 								 :1;
+		uint8_t SerialVTComandRecibido :1;
 		uint8_t SerialEnciendeBuzzer	 :1;
 		uint8_t SerialBuzzerIniciado	 :1;
 		uint8_t SerialMensajeRecibido	 :1;
@@ -90,6 +90,14 @@ typedef struct
 	GPIO_TypeDef * SerialPuertoBuzzer;
 	uFlags Flags;
 	uint8_t BufferAtencion[SIZE_BUFFER_ATENCION];
+
+	void		(*InitBuzzer)(GPIO_TypeDef * GPIOPortBuzzer, uint16_t BUZZER_Pin);
+	void		(*AtencionBuzzer)(void);
+	void 		(*Atencion)(void);
+	int8_t	(*getString)(uint8_t * String);
+	uint8_t (*ImprimirString)(uint8_t * String);
+	void 		(*AboutIt)(void);
+	
 }eSerial;
 
 //Variables privadas----------------------------------------------------------------------------/
@@ -195,6 +203,14 @@ void Serial_InitBuzzer(GPIO_TypeDef * GPIOPortBuzzer, uint16_t BUZZER_Pin)
 //-------------------------------------------------------------------------------------------------------------------------
 void Serial_Iniciar(void)
 {
+	//Asociar punteros a función con las funciones declaradas
+	gsSerial.InitBuzzer 		= Serial_InitBuzzer;
+	gsSerial.AtencionBuzzer	=	Serial_AtencionBuzzer;
+	gsSerial.Atencion				= Serial_Atencion;
+	gsSerial.getString			= Serial_getString;
+	gsSerial.ImprimirString	= Serial_ImprimirString;
+	gsSerial.AboutIt 				= Serial_AboutIt;	
+	
 	Timer_Inicializar();
 	gsSerial.Flags.all = 0x00;
 	printf("%s", SERIAL_HEADER);
@@ -228,14 +244,28 @@ void Serial_Atencion(void)
 		fflush(stdin);
 		return;
 	}
+	
+	//Observar lo que se ha ingresado en la terminal
 	StatusReceiveChar = ITM_ReceiveChar();
+	
+	//Si se ha recibido un archivo un comando VT100
+	if(gsSerial.Flags.SerialVTComandRecibido == true)
+	{
+
+		if(StatusReceiveChar == '[' ) return;
+		if(StatusReceiveChar == '1') printf("%s", CURSOR_IZQUIERDA);
+		if(StatusReceiveChar == 'C')printf("%s", CURSOR_DERECHA);
+
+		gsSerial.Flags.SerialVTComandRecibido = false;
+	}
 	
 	//Si no hay nada qué recibir de la consola
 	if(StatusReceiveChar == SIN_CARACTERES) return; 
 	
 	//Si se recibe algún comando ANSI/VT100
 	if(StatusReceiveChar == ESC)
-		{			
+		{
+				gsSerial.Flags.SerialVTComandRecibido = true;
 			//Se pregunta si se inicializó el buzzer
 			if(gsSerial.Flags.SerialBuzzerIniciado == true) gsSerial.Flags.SerialEnciendeBuzzer = true;
 			return;
