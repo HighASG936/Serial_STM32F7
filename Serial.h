@@ -9,7 +9,7 @@ Date:	20/01/2017
 
 Description:
 Esta librería tiene la función de administrar las funciones relacionadas con la terminal 
-incorporada en el Keilv5, Viewer(printf) y la comunicación serial UART incorporada en el 
+incorporada en el Keilv5, Debug(printf)Viewer y la comunicación serial UART incorporada en el 
 microcontrolador STM32F7. Aunque cabe señalar que puede ser compatible con cualquier tarjeta
 de desarrollo Discovery.
 
@@ -203,7 +203,7 @@ void Serial_InitBuzzer(GPIO_TypeDef * GPIOPortBuzzer, uint16_t BUZZER_Pin)
 //-------------------------------------------------------------------------------------------------------------------------
 void Serial_Iniciar(void)
 {
-
+	//Asociar punteros a función con las funciones declaradas
 	gsSerial.InitBuzzer 		= Serial_InitBuzzer;
 	gsSerial.AtencionBuzzer	=	Serial_AtencionBuzzer;
 	gsSerial.Atencion				= Serial_Atencion;
@@ -244,15 +244,18 @@ void Serial_Atencion(void)
 		fflush(stdin);
 		return;
 	}
+	
+	//Observar lo que se ha ingresado en la terminal
 	StatusReceiveChar = ITM_ReceiveChar();
 	
+	//Si se ha recibido un archivo un comando VT100
 	if(gsSerial.Flags.SerialVTComandRecibido == true)
 	{
-/*
+
 		if(StatusReceiveChar == '[' ) return;
-		if(StatusReceiveChar == 'D') printf("%s", CURSOR_IZQUIERDA);
+		if(StatusReceiveChar == '1') printf("%s", CURSOR_IZQUIERDA);
 		if(StatusReceiveChar == 'C')printf("%s", CURSOR_DERECHA);
-*/
+
 		gsSerial.Flags.SerialVTComandRecibido = false;
 	}
 	
